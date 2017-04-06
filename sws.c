@@ -14,6 +14,7 @@
 
 #include "network.h"
 
+#define MAX_REQ 255							//maximum requests on the request table
 #define MAX_HTTP_SIZE 8192                 /* size of buffer to allocate */
 #define FCFS 0
 #define SJF 1
@@ -29,8 +30,20 @@
  *             fd : the file descriptor to the client connection
  * Returns: None
  */
+
+struct rcb //Request control block for a client request
+{
+	int seq; 			//The sequence number of the request
+	int fd; 			//The file descriptor of the client (returned by network_wait())
+	FILE * handle;		//Handle of file being requested
+	int byte_remain; 	//Number of bytes of the file that remain to be sent
+	int quantum;		//Maximum number of bytes to be sent when the request is serviced
+}
+
+rcb[255] reqtable;		//Request table storing request control blocks for client requests
+
 static void serve_client( int fd ) {
-  	static char *buffer;                              		/* request buffer */
+  	static char *buffer;                              		* request buffer */
 		char *req = NULL;                                 	/* ptr to req file */
 		char *brk;                                        	/* state used by strtok */
 		char *tmp;                                        	/* error checking ptr */
