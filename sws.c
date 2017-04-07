@@ -74,6 +74,7 @@ int main( int argc, char **argv ) {
 													   	 * If error is equal to 1 there is an error. */
 	struct rcb rcb_temp;								    /* temporary rcb for sending to the scheduler*/
 	rcb_temp.success = 0;								//initialize rcb success as 0
+	struct rcb* sjf_ptr;								//pointer for SJF scheduler
 	struct rcb* rcb_p;									//pointer to an rcb in the table
 	int fd;                                           	/* client file descriptor */
 	int i;												//temporary int for storing position of rcb entry
@@ -91,7 +92,10 @@ int main( int argc, char **argv ) {
 		if ( argc > 2 ) {
 			if ( strcmp(argv[2], "SJF") == 0 ) {		/* Compares argv[2] to SJF sets equal to 1 if matching. */			
 			  	scheduler_type = SJF;
-			  	sjf_init();
+			  	sjf_ptr = sjf_init();
+			  	if(sjf_ptr == NULL){
+			  		error = 1
+			  	}
 			}
 			else if ( strcmp(argv[2], "RR") == 0 ) {	/* "		"		"  RR 		"		 2		"	   */
 			  	scheduler_type = RR;
@@ -137,7 +141,7 @@ int main( int argc, char **argv ) {
 				i++;
 				switch (scheduler_type){						//call scheduler based on given type 
 	     			case (SJF):
-	     				sjf_add(rcb_p);						//add the client to the queue
+	     				sjf_ptr = sjf_next(reqtable);					//get the next request from the updated table
 	     				break;
 	     			case (RR):
 	     				rr_add(rcb_p);

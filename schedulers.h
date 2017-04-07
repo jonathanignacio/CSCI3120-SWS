@@ -15,11 +15,9 @@
 
 /*******************Shortest Job First Functions*****************************/
 
-void sjf_init();
+struct rcb* sjf_init();
 
-void sjf_add(struct rcb* input);
-
-struct rcb* sjf_next();
+struct rcb* sjf_next(struct rcb *table, struct rcb *ptr);
 
 /*******************Round Robin Functions************************************/
 
