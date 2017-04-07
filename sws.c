@@ -11,15 +11,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include "network.h"
 
-#define MAX_REQ 255							//maximum requests on the request table
+#define MAX_REQ 100							//maximum requests on the request table
 #define MAX_HTTP_SIZE 8192                 /* size of buffer to allocate */
 #define FCFS 0
 #define SJF 1
 #define RR 2
 #define MLF 3
+
 
 
 /* This function takes a file handle to a client, reads in the request, 
@@ -31,24 +33,51 @@
  * Returns: None
  */
 
+int seq_counter = 1;
 struct rcb //Request control block for a client request
 {
 	int seq; 			//The sequence number of the request
 	int fd; 			//The file descriptor of the client (returned by network_wait())
 	FILE * handle;		//Handle of file being requested
-	int byte_remain; 	//Number of bytes of the file that remain to be sent
+	unsigned int byte_remain; //Number of bytes of the file that remain to be sent
 	int quantum;		//Maximum number of bytes to be sent when the request is serviced
 }
 
-rcb[255] reqtable;		//Request table storing request control blocks for client requests
+rcb[MAX_REQ] reqtable;		//Request table storing request control blocks for client requests
 
-static void serve_client( int fd ) {
-  	static char *buffer;                              		* request buffer */
-		char *req = NULL;                                 	/* ptr to req file */
-		char *brk;                                        	/* state used by strtok */
-		char *tmp;                                        	/* error checking ptr */
+/* The following function serves a request given a fd. The runs integer specifies how many times
+ * the request will wrtie to the buffer.
+ */
+static void serve_client( rcb &input, int runs) {
 		FILE *fin;                                        	/* input file handle */
-		int len;                                          	/* length of data read */
+		int i = 0;
+		do {                                          		/* loop, read & send file */
+	        len = fread( buffer, 1, MAX_HTTP_SIZE, fin );  	/* read file chunk */
+	        if( len < 0 ) {                             	/* check for errors */
+	            perror( "Error while writing to client" );
+	        } else if( len > 0 ) {                      	/* if none, send chunk */
+				len = write( fd, buffer, len );
+				if( len < 1 ) {                           	/* check for errors */
+	            perror( "Error while writing to client" );
+				}
+	        }
+	        i++;
+		} while( len == MAX_HTTP_SIZE && i < runs);         /* the last chunk < 8192 or maximum runs reached*/
+}
+
+
+/*	This function takes a file descriptor for a client connection, parses it and stores
+ *	it as a RCB.
+*/
+rcb * parse_client(int fd) {
+  	static char *buffer;                              		/* request buffer */
+	char *req = NULL;                         	        	/* ptr to req file */
+	char *brk;                                  	      	/* state used by strtok */
+	char *tmp;                                      	  	/* error checking ptr */
+	int len;                                          		/* length of data read */
+	FILE *fin;    	                                    	/* input file handle */
+	rcb *rcblock;											/* rcb for adding to the scheduler */
+	stat *fileinfo											/* stat struct for getting file information*/
 
   	if( !buffer ) {                                   		/* 1st time, alloc buffer */
 	    buffer = malloc( MAX_HTTP_SIZE );
@@ -77,31 +106,47 @@ static void serve_client( int fd ) {
 	    len = sprintf( buffer, "HTTP/1.1 400 Bad request\n\n" );
 	    write( fd, buffer, len );                      		/* if not, send err */
 	} else {                                          		/* if so, open file */
+		rcblock.seq = seq_counter;							/* assign seq to rcb */
+		rcblock.fd = fd;									/* assign fd to rcb*/
+		seq_counter++;
 	    req++;                                          	/* skip leading / */
+
 	    fin = fopen( req, "r" );                        	/* open file */
+	    rcblock.handle = fin;								/* assign file to rcb */
+	    fstat(fd, fileinfo);								/* get the file info from the fd */
+		rcblock.byte_remain = fileinfo.st_size;				/* remaining size starts */
+		rcblock.quantum = MAX_HTTP_SIZE;					/* default max quantum to max http size */
+
 	    if( !fin ) {                                    	/* check if successful */
 			len = sprintf( buffer, "HTTP/1.1 404 File not found\n\n" );  
 			write( fd, buffer, len );                     	/* if not, send err */
+			return NULL;
 	    } else {                                        	/* if so, send file */
 			len = sprintf( buffer, "HTTP/1.1 200 OK\n\n" );	/* send success code */
 			write( fd, buffer, len );
-
-		do {                                          		/* loop, read & send file */
-	        len = fread( buffer, 1, MAX_HTTP_SIZE, fin );  	/* read file chunk */
-	        if( len < 0 ) {                             	/* check for errors */
-	            perror( "Error while writing to client" );
-	        } else if( len > 0 ) {                      	/* if none, send chunk */
-				len = write( fd, buffer, len );
-				if( len < 1 ) {                           	/* check for errors */
-	            perror( "Error while writing to client" );
-				}
-	        }
-		} while( len == MAX_HTTP_SIZE );              		/* the last chunk < 8192 */
-      	fclose( fin );
-	    }
+			return rcblock;
+		}
+	fclose(fin);
 	}
-	close( fd );                                     		/* close client connectuin*/
+
+	return NULL;
+
 }
+
+/* The following 3 functions are the schedulers */
+
+rcb * sjf(){
+	return 0;
+}
+
+rcb * rr(){
+	return 0;
+}
+
+rcb * mlf(){
+	return 0;
+}
+
 
 
 /* This function is where the program starts running.
@@ -121,6 +166,7 @@ int main( int argc, char **argv ) {
   	int num_threads = 1;								/* Number of threads. Defaults to 1. */	
   	int error = 0;										/* Allows full argument to be evaluated for errors.
 													   	 *	If error is equal to 1 there is an error. */
+	rcb * current = NULL;								/* temporary rcb for sending to the scheduler*/
 /* check for and process parameters */
 	if (argc < 2){										/* Ensures minimum number of arguments met. */
 		error = 1;
@@ -164,7 +210,24 @@ int main( int argc, char **argv ) {
 	    network_wait();                                 /* wait for clients */
 
 	    for( fd = network_open(); fd >= 0; fd = network_open() ) {	/* get clients */
-	     	serve_client( fd );                      	/* process each client */
+			current = parse_client( fd );				/* create a rcb for the client request */
+			if(current != NULL) {
+															/* add rcb to table */
+				switch (scheduler_type){					/* call scheduler based on given type */
+	     			case (SJF):
+	     				current = sjf();
+	     				serve_client(current);
+	     				break;
+	     			case (RR) :
+	     				temp_fd = rr();
+	     				break;
+	     			case (MLF)
+	     				temp_fd = mlf();
+	     				break;
+	     		}
+	     		serve_client( temp_fd );                     /* process the given client */
+			}
+			current = NULL;
 	    }
 	  }
 	}
