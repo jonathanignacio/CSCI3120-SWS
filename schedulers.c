@@ -34,11 +34,9 @@ struct rcb *sjf_init() {
 	return temp;
 }
 
-}
-
 struct rcb *sjf_next(struct rcb *table, struct rcb *ptr) {
 	unsigned int lowest = ptr->byte_remain;
-	char set = 0;						`					//variable for determining if the ptr has valid values
+	char set = 0;											//variable for determining if the ptr has valid values
 	if (ptr->occupied = 1){
 		lowest = ptr->byte_remain;
 		set = 1; 											//flag that the entry was set properly
@@ -60,7 +58,7 @@ struct rcb *sjf_next(struct rcb *table, struct rcb *ptr) {
 		}
 	}
 	else{
-		printf("Error, no entries found in the request table")
+		printf("Error, no entries found in the request table");
 		return NULL;
 	}
 

@@ -154,17 +154,17 @@ int main( int argc, char **argv ) {
 			}
 			switch (scheduler_type){					/* call scheduler based on given type */
      			case (SJF):
-     				rcb_p = sjf_next();						//get the next request to process from the scheduler
-     				serve_client(rcb_p);
-     				if(rcb_p->byte_remain <= 0){
-     					rcb_p->occupied = 0;				//the request has been completed, remove it from the table
-     					reqtable[rcb_p->pos] = *rcb_p;		/*update the completed empty in the table (free it) 
+     				sjf_ptr = sjf_next(reqtable, sjf_ptr);						//get the next request to process from the scheduler
+     				serve_client(sjf_ptr);
+     				if(sjf_ptr->byte_remain <= 0){
+     					sjf_ptr->occupied = 0;				//the request has been completed, remove it from the table
+     					reqtable[sjf_ptr->pos] = *sjf_ptr;		/*update the completed empty in the table (free it) 
      														 *may not be necessary if the pointer already points 
      														 *to an entry in the table*/
-     					close(rcb_p->fd);					/*close the connection for the completed request */
+     					close(sjf_ptr->fd);					/*close the connection for the completed request */
      				}
      				else {
-     					sjf_add(reqtable, sjf_ptr);						//if more bytes remain, add the request back to the queue
+     					sjf_ptr = sjf_next(reqtable, sjf_ptr);						//if more bytes remain, add the request back to the queue
      				}
      				break;
      			case (RR) :
