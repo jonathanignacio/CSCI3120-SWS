@@ -94,7 +94,7 @@ int main( int argc, char **argv ) {
 			  	scheduler_type = SJF;
 			  	sjf_ptr = sjf_init();
 			  	if(sjf_ptr == NULL){
-			  		error = 1
+			  		error = 1;
 			  	}
 			}
 			else if ( strcmp(argv[2], "RR") == 0 ) {	/* "		"		"  RR 		"		 2		"	   */
@@ -141,7 +141,7 @@ int main( int argc, char **argv ) {
 				i++;
 				switch (scheduler_type){						//call scheduler based on given type 
 	     			case (SJF):
-	     				sjf_ptr = sjf_next(reqtable);					//get the next request from the updated table
+	     				sjf_ptr = sjf_next(reqtable, sjf_ptr);					//get the next request from the updated table
 	     				break;
 	     			case (RR):
 	     				rr_add(rcb_p);
@@ -164,7 +164,7 @@ int main( int argc, char **argv ) {
      					close(rcb_p->fd);					/*close the connection for the completed request */
      				}
      				else {
-     					sjf_add(rcb_p);						//if more bytes remain, add the request back to the queue
+     					sjf_add(reqtable, sjf_ptr);						//if more bytes remain, add the request back to the queue
      				}
      				break;
      			case (RR) :
