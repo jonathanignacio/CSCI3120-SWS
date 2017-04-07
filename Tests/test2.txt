@@ -1,0 +1,8 @@
+test2
+Group 11
+
+Tests delay and pause for one file.
+Should work after the delay.
+
+8080
+10.0 3.0 sws.c

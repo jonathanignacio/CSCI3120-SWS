@@ -1,0 +1,9 @@
+test0
+Group 11
+
+A very basic test, just to see if it can connect to one
+thing with no delays or pauses.
+
+8080
+0.0 0.0 sws.c
+

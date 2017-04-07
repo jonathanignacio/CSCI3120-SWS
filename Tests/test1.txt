@@ -1,0 +1,11 @@
+test1
+Group 11
+
+Tests connecting to multiple files, starting small.
+Expect to process them all one after the other.
+
+8080
+0.0 0.0 sws.c
+1.0 0.0 network.c
+2.0 0.0 network.h
+3.0 0.0 makefile

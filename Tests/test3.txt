@@ -1,0 +1,10 @@
+test3
+Group 11
+
+Tests long pauses and delays for processing multiple files
+Should pass after the delays and pauses.
+
+8080
+10.0 3.0 sws.c
+15.0 3.0 network.c
+20.0 3.0 network.h
