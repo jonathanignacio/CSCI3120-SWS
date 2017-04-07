@@ -7,28 +7,34 @@
 
 #ifndef SCHEDULERS_H
 #define SCHEDULERS_H
-#endif
+
+
+#define MAX_HTTP_SIZE 8192                 	//size of buffer to allocate 
+
+#include "rcb.h"
 
 /*******************Shortest Job First Functions*****************************/
 
 void sjf_init();
 
-void sjf_add(rcb* input);
+void sjf_add(struct rcb* input);
 
-rcb sjf_next();
+struct rcb* sjf_next();
 
 /*******************Round Robin Functions************************************/
 
 void rr_init();
 
-void rr_add(rcb* input);
+void rr_add(struct rcb* input);
 
-rcb rr_next();
+struct rcb* rr_next();
 
 /*******************Multilevel Feedback Queue Functions**********************/
 
 void mlf_init();
 
-void mlf_add(rcb* input);
+void mlf_add(struct rcb* input);
 
-rcb mlf_next();
+struct rcb* mlf_next();
+
+#endif

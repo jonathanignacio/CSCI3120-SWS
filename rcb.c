@@ -12,18 +12,19 @@
 #include <sys/stat.h>
 
 #include "rcb.h"
+#include "schedulers.h"
 
 /*	This function takes a file descriptor for a client connection, parses it and returns it as an RCB
 */
-rcb create_rcb(int fd) {
+struct rcb create_rcb(int fd) {
   	static char *buffer;                              		/* request buffer */
 	char *req = NULL;                         	        	/* ptr to req file */
 	char *brk;                                  	      	/* state used by strtok */
 	char *tmp;                                      	  	/* error checking ptr */
 	int len;                                          		/* length of data read */
 	FILE *fin;    	                                    	/* input file handle */
-	rcb *rcblock;											/* rcb for adding to the scheduler */
-	stat *fileinfo											/* stat struct for getting file information*/
+	struct rcb rcblock;										/* rcb for adding to the scheduler */
+	struct stat *fileinfo;									/* stat struct for getting file information*/
 
   	if( !buffer ) {                                   		/* 1st time, alloc buffer */
 	    buffer = malloc( MAX_HTTP_SIZE );
@@ -52,15 +53,13 @@ rcb create_rcb(int fd) {
 	    len = sprintf( buffer, "HTTP/1.1 400 Bad request\n\n" );
 	    write( fd, buffer, len );                      		/* if not, send err */
 	} else {                                          		/* if so, open file */
-		rcblock.seq = seq_counter;							/* assign seq to rcb */
 		rcblock.fd = fd;									/* assign fd to rcb*/
-		seq_counter++;
 	    req++;                                          	/* skip leading / */
 
 	    fin = fopen( req, "r" );                        	/* open file */
 	    rcblock.handle = fin;								/* assign file to rcb */
 	    fstat(fd, fileinfo);								/* get the file info from the fd */
-		rcblock.byte_remain = fileinfo.st_size;				/* remaining size starts */
+		rcblock.byte_remain = fileinfo->st_size;				/* remaining size starts */
 		rcblock.quantum = MAX_HTTP_SIZE;					/* default max quantum to max http size */
 
 	    if( !fin ) {                                    	/* check if successful */
@@ -77,23 +76,23 @@ rcb create_rcb(int fd) {
 
 /* Initialize an rbc table.
 */
-void rcbt_init(rbc* table){
-	rcb rcbt[RCBT_MAX];
+void rcbt_init(struct rcb* table){
+	struct rcb rcbt[RCBT_MAX];
 	table =  rcbt;
 	for(int i = 0; i < RCBT_MAX; i++){
 		table[i].occupied = 0;
 	}
 }
 
-/* Attempt to add an rcb to the rcb table. returns 1 if successful and 0 if not.
+/* Attempt to add an rcb to the rcb table. returns pos of entry if successful and -1 if not.
 *  Takes the rcb to add as well as a pointer to the table to add it to.
 */
-int rcbt_add(rcb input, rcb *table) {
+int rcbt_add(struct rcb input, struct rcb *table) {
 	for(int i = 0; i < RCBT_MAX; i++){
 		if(!table[i].occupied){
 			input.pos = i;
 			table[i] = input;
-			return 1;
+			return i;
 		}
 	}
 	return 0;

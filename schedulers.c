@@ -12,33 +12,51 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-
 #include "schedulers.h"
-#include "rcb.h"
-
 
 /*In general, the schedulers will store references to entries in the table
  *to determine their priority and processing order*/
 /*******************Shortest Job First Functions*****************************/
 
-void sjf_init();
+void sjf_init() {
 
-void sjf_add(rcb input);
+}
 
-rcb* sjf_next();
+void sjf_add(struct rcb* input) {
+
+}
+
+struct rcb* sjf_next() {
+	struct rcb temp; //does nothing yet
+	return &temp;
+}
 
 /*******************Round Robin Functions************************************/
 
-void rr_init();
+void rr_init() {
 
-void rr_add(rcb input);
+}
 
-rcb* rr_next();
+void rr_add(struct rcb* input) {
+
+}
+
+struct rcb* rr_next() {
+	struct rcb temp; //does nothing yet
+	return &temp;
+}
 
 /*******************Multilevel Feedback Queue Functions**********************/
 
-void mlf_init();
+void mlf_init() {
 
-void mlf_add(rcb input);
+}
 
-rcb* mlf_next();
+void mlf_add(struct rcb* input) {
+
+}
+
+struct rcb* mlf_next() {
+	struct rcb temp; //does nothing yet
+	return &temp;
+}

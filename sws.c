@@ -16,17 +16,16 @@
 #include <sys/stat.h>
 
 #include "network.h"
-#include "rcb.h"
 #include "schedulers.h"
+#include "rcb.h"
 
-#define MAX_HTTP_SIZE 8192                 	//size of buffer to allocate 
 #define FCFS 0
 #define SJF 1
 #define RR 2
 #define MLF 3
 
-rcb[RCBT_MAX] reqtable;		//Request table storing request control blocks for client requests
-int scheduler_type			//The type of scheduler that the server will use.
+struct rcb reqtable[RCBT_MAX];		//Request table storing request control blocks for client requests
+int scheduler_type;			//The type of scheduler that the server will use.
 
 int seq_counter = 1;
 
@@ -38,21 +37,23 @@ int seq_counter = 1;
  *             fd : the file descriptor to the client connection
  * Returns: None
  */
-static void serve_client( rcb* input, int runs) {
-		FILE *fin;                                        	/* input file handle */
-		int i = 0;
-		do {                                          		/* loop, read & send file */
-	        len = fread( buffer, 1, MAX_HTTP_SIZE, fin );  	/* read file chunk */
-	        if( len < 0 ) {                             	/* check for errors */
-	            perror( "Error while writing to client" );
-	        } else if( len > 0 ) {                      	/* if none, send chunk */
-				len = write( fd, buffer, len );
-				if( len < 1 ) {                           	/* check for errors */
-	            perror( "Error while writing to client" );
-				}
-	        }
-	        i++;
-		} while( len == MAX_HTTP_SIZE && i < runs);         /* the last chunk < 8192 or maximum runs reached*/
+static void serve_client(struct rcb* input) {
+  	static char *buffer;                              	/* request buffer */
+	int len;                                          	/* length of data read */
+	FILE *fin = input->handle;                          /* input file handle */
+	int fd = input->fd;									/* file descriptor */
+
+	                                  					/* read & send file */
+    len = fread( buffer, 1, MAX_HTTP_SIZE, fin );  		/* read file chunk */
+    if( len < 0 ) {                             		/* check for errors */
+        perror( "Error while writing to client" );
+    } else if( len > 0 ) {            	          		/* if none, send chunk */
+		len = write( fd, buffer, len );
+		if( len < 1 ) {                           		/* check for errors */
+        perror( "Error while writing to client" );
+		}
+	} 
+	input->byte_remain = input -> byte_remain - len;
 }
 
 /* This function is where the program starts running.
@@ -71,31 +72,35 @@ int main( int argc, char **argv ) {
   	int num_threads = 1;								/* Number of threads. Defaults to 1. */	
   	int error = 0;										/* Allows full argument to be evaluated for errors.
 													   	 * If error is equal to 1 there is an error. */
-	rcb temprcb;								        /* temporary rcb for sending to the scheduler*/
-	temprcb.success = 0;								//initialize rcb success as 0
-	rcb * rcb_p											//pointer to an rcb in the table
+	struct rcb rcb_temp;								    /* temporary rcb for sending to the scheduler*/
+	rcb_temp.success = 0;								//initialize rcb success as 0
+	struct rcb* rcb_p;									//pointer to an rcb in the table
 	int fd;                                           	/* client file descriptor */
+	int i;												//temporary int for storing position of rcb entry
 /* check for and process parameters */
 	if (argc < 2){										/* Ensures minimum number of arguments met. */
 		error = 1;
 		printf ( "usage: sms <port>\n" );
 	} else {
-		port = atoi(arv[1]);
+		port = atoi(argv[1]);
 		if( ( port < 1024 ) || ( port > 65525 ) ) { 	/* Ensures proper port numbers. */
 			printf( "usage: sms <port>\n" );
 			error = 1;
 		}
 		
 		if ( argc > 2 ) {
-			if ( strcmp(argv[2], "SJF") == 0 )			/* Compares argv[2] to SJF sets equal to 1 if matching. */			
+			if ( strcmp(argv[2], "SJF") == 0 ) {		/* Compares argv[2] to SJF sets equal to 1 if matching. */			
 			  	scheduler_type = SJF;
 			  	sjf_init();
-			else if ( strcmp(argv[2], "RR") == 0 )		/* "		"		"  RR 		"		 2		"	   */
+			}
+			else if ( strcmp(argv[2], "RR") == 0 ) {	/* "		"		"  RR 		"		 2		"	   */
 			  	scheduler_type = RR;
 			  	rr_init();
-			else if (strcmp(argv[2], "MLF") == 0 )		/* "		"		"  MLF		"		 3		"	   */
+			}
+			else if (strcmp(argv[2], "MLF") == 0 ) {	/* "		"		"  MLF		"		 3		"	   */
 			  	scheduler_type = MLF;
 			  	mlf_init();
+			}
 			else {										/* Ensures proper scheduler if required. Default FCFS. */
 			  	printf( "usage: sms <scheduler>\n" );	
 			  	error = 1;
@@ -115,7 +120,7 @@ int main( int argc, char **argv ) {
 	if (error == 1)										//Ends program after stating errors in arguments.					
 		return 0;
 
-	rcbt_init(reqtable)									//init the rcb table
+	rcbt_init(reqtable);								//init the rcb table
 	network_init( port );                             	//init network module */
 
 
@@ -123,19 +128,22 @@ int main( int argc, char **argv ) {
 	    network_wait();                                 /* wait for clients */
 
 	    for( fd = network_open(); fd >= 0; fd = network_open() ) {	/* get clients */
-			temprcb = create_rcb( fd );				/* create a rcb for the client request */
-
-			if(temprcb.success && rcbt_add(temprcb, reqtable)) { 	/*check that the rcb was created successfully 
-																	 *and that it was added to the table correctly. */
-				switch (scheduler_type){					/* call scheduler based on given type */
+			rcb_temp = create_rcb( fd );								/* create a rcb for the client request */
+			i = rcbt_add(rcb_temp, reqtable);
+			rcb_p = &reqtable[i];								//set point to point at entry in the table
+			if(rcb_temp.success && i >= 0 && i < RCBT_MAX) {			/*check that the rcb was created successfully 
+																		 *and that it was added to the table correctly. */
+				reqtable[i].seq = seq_counter;					//assign the seq to the request and increment the counter
+				i++;
+				switch (scheduler_type){						//call scheduler based on given type 
 	     			case (SJF):
-	     				sjf_add(temprcb);						//add the client to the queue
+	     				sjf_add(rcb_p);						//add the client to the queue
 	     				break;
 	     			case (RR):
-	     				rr_add(temprcb);
+	     				rr_add(rcb_p);
 	     				break;
 	     			case (MLF):
-	     				mlf_add(temprcb);
+	     				mlf_add(rcb_p);
 	     				break;
 	     		}
 
@@ -149,17 +157,17 @@ int main( int argc, char **argv ) {
      					reqtable[rcb_p->pos] = *rcb_p;		/*update the completed empty in the table (free it) 
      														 *may not be necessary if the pointer already points 
      														 *to an entry in the table*/
-
+     					close(rcb_p->fd);					/*close the connection for the completed request */
      				}
      				else {
-     					sjf_add(rcb_p);	
+     					sjf_add(rcb_p);						//if more bytes remain, add the request back to the queue
      				}
      				break;
      			case (RR) :
-     				rr_add(*rcb_p);
+     				rr_add(rcb_p);
      				break;
-     			case (MLF)
-     				mlf_add(*rcb_p);
+     			case (MLF) :
+     				mlf_add(rcb_p);
      				break;
 	     		}
 			rcb_p = NULL;
