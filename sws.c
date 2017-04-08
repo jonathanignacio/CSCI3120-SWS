@@ -128,12 +128,12 @@ int main( int argc, char **argv ) {
 	network_init( port );                             	//init network module */
 
 
-	  while(1){                                       	/* main loop */
+	while(1){                                       	/* main loop */
 	    network_wait();                                 /* wait for clients */
 
 	    for( fd = network_open(); fd >= 0; fd = network_open() ) {	/* get clients */
 			rcb_temp = create_rcb( fd );								/* create a rcb for the client request */
-			i = rcbt_add(rcb_temp, reqtable);
+			i = rcbt_add(rcb_temp, reqtable);						//add the new entry to the request table and returns its position
 			rcb_p = &reqtable[i];								//set point to point at entry in the table
 			if(rcb_temp.success && i >= 0 && i < RCBT_MAX) {			/*check that the rcb was created successfully 
 																		 *and that it was added to the table correctly. */
@@ -149,32 +149,37 @@ int main( int argc, char **argv ) {
 	     			case (MLF):
 	     				mlf_add(rcb_p);
 	     				break;
-	     		}
+     				}
+     		}
 
-			}
-			switch (scheduler_type){					/* call scheduler based on given type */
-     			case (SJF):
-     				sjf_ptr = sjf_next(reqtable, sjf_ptr);						//get the next request to process from the scheduler
-     				serve_client(sjf_ptr);
-     				if(sjf_ptr->byte_remain <= 0){
-     					sjf_ptr->occupied = 0;				//the request has been completed, remove it from the table
-     					reqtable[sjf_ptr->pos] = *sjf_ptr;		/*update the completed empty in the table (free it) 
-     														 *may not be necessary if the pointer already points 
-     														 *to an entry in the table*/
-     					close(sjf_ptr->fd);					/*close the connection for the completed request */
-     				}
-     				else {
-     					sjf_ptr = sjf_next(reqtable, sjf_ptr);						//if more bytes remain, add the request back to the queue
-     				}
-     				break;
-     			case (RR) :
-     				rr_add(rcb_p);
-     				break;
-     			case (MLF) :
-     				mlf_add(rcb_p);
-     				break;
-	     		}
-			rcb_p = NULL;
-	    }
-	  }
-	}
+     		switch (scheduler_type){					/* call scheduler based on given type */
+	 			case (SJF):
+	 				sjf_ptr = sjf_next(reqtable, sjf_ptr);						//get the next request to process from the scheduler
+	 				serve_client(sjf_ptr);
+	 				if(sjf_ptr->byte_remain <= 0){
+	 					sjf_ptr->occupied = 0;				//the request has been completed, remove it from the table
+	 					reqtable[sjf_ptr->pos] = *sjf_ptr;		/*update the completed empty in the table (free it) 
+	 														 *may not be necessary if the pointer already points 
+	 														 *to an entry in the table*/
+	 					printf("Request <%d> completed\n", sjf_ptr->seq); //send a completion message.
+						close(sjf_ptr->fd);					/*close the connection for the completed request */
+	 					fclose(sjf_ptr->handle);
+	 				}
+	 				else {
+	 					sjf_ptr = sjf_next(reqtable, sjf_ptr);						//if more bytes remain, add the request back to the queue
+	 				}
+	 				break;
+	 			case (RR):
+	 				rr_add(rcb_p);
+	 				break;
+	 			case (MLF):
+	 				mlf_add(rcb_p);
+ 					break;
+ 			}
+		}
+		
+		rcb_p = NULL;
+    }
+}
+
+	

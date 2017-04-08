@@ -35,10 +35,8 @@ struct rcb *sjf_init() {
 }
 
 struct rcb *sjf_next(struct rcb *table, struct rcb *ptr) {
-	unsigned int lowest = ptr->byte_remain;
 	char set = 0;											//variable for determining if the ptr has valid values
-	if (ptr->occupied = 1){
-		lowest = ptr->byte_remain;
+	if (ptr->occupied){
 		set = 1; 											//flag that the entry was set properly
 	}
 	else {

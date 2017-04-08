@@ -24,7 +24,7 @@ struct rcb create_rcb(int fd) {
 	int len;                                          		/* length of data read */
 	FILE *fin;    	                                    	/* input file handle */
 	struct rcb rcblock;										/* rcb for adding to the scheduler */
-	struct stat *fileinfo;									/* stat struct for getting file information*/
+	struct stat fileinfo;									/* stat struct for getting file information*/
 
   	if( !buffer ) {                                   		/* 1st time, alloc buffer */
 	    buffer = malloc( MAX_HTTP_SIZE );
@@ -58,8 +58,8 @@ struct rcb create_rcb(int fd) {
 
 	    fin = fopen( req, "r" );                        	/* open file */
 	    rcblock.handle = fin;								/* assign file to rcb */
-	    fstat(fd, fileinfo);								/* get the file info from the fd */
-		rcblock.byte_remain = fileinfo->st_size;				/* remaining size starts */
+	    fstat(fd, &fileinfo);								/* get the file info from the fd */
+		rcblock.byte_remain = fileinfo.st_size;				/* remaining size starts */
 		rcblock.quantum = MAX_HTTP_SIZE;					/* default max quantum to max http size */
 
 	    if( !fin ) {                                    	/* check if successful */
@@ -77,7 +77,8 @@ struct rcb create_rcb(int fd) {
 /* Initialize an rbc table.
 */
 void rcbt_init(struct rcb* table){
-	struct rcb rcbt[RCBT_MAX];
+	struct rcb *rcbt;
+	rcbt = (struct rcb *)malloc(sizeof(struct rcb)*RCBT_MAX); //dynamically allocate the pointer for future use
 	table =  rcbt;
 	for(int i = 0; i < RCBT_MAX; i++){
 		table[i].occupied = 0;
@@ -91,6 +92,7 @@ int rcbt_add(struct rcb input, struct rcb *table) {
 	for(int i = 0; i < RCBT_MAX; i++){
 		if(!table[i].occupied){
 			input.pos = i;
+			input.occupied = 1;
 			table[i] = input;
 			return i;
 		}
